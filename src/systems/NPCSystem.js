@@ -93,32 +93,21 @@ export class NPCSystem {
     nameplate.isPickable = false;
 
     // Load NPC GLTF from /public/assets/characters/npcs/
-    // Each file is a flat right-angle triangle (XY plane, no material).
-    // We apply a coloured material and attach the root to the NPC TransformNode.
+    // Quaternius enemy models are ~1.5 units tall; scale to fit the NPC capsule.
     try {
       const npcIdx = (typeIdx % 5) + 1;
       const assetPath = `/assets/characters/npcs/npc${npcIdx}.gltf`;
       const result = await SceneLoader.ImportMeshAsync('', '', assetPath, this.scene);
       if (result.meshes.length > 0) {
-        const npcColor = NPC_COLORS[typeIdx % NPC_COLORS.length];
-        const mat = new StandardMaterial(`npcGltfMat_${id}`, this.scene);
-        mat.diffuseColor = npcColor;
-        mat.emissiveColor = npcColor.scale(0.5);
-        mat.backFaceCulling = false; // show both faces of the flat triangle
-
         // Attach root to NPC transform node and reset local transform
         const rootMesh = result.meshes[0];
         rootMesh.parent = root;
-        rootMesh.position = new Vector3(0, 0.1, 0);
-        const s = 2.0;
+        rootMesh.position = new Vector3(0, 0, 0);
+        const s = 1.2;
         rootMesh.scaling = new Vector3(s, s, s);
-        rootMesh.isVisible = true;
 
-        // Apply material to every mesh in the imported hierarchy
-        result.meshes.forEach(m => {
-          m.material = mat;
-          m.isVisible = true;
-        });
+        // Show all meshes with their original Quaternius materials
+        result.meshes.forEach(m => { m.isVisible = true; });
 
         // GLTF asset is now the primary visual — hide procedural fallback
         body.isVisible = false;

@@ -173,33 +173,25 @@ export class MainWorldScene {
       plat.receiveShadows = true;
     }
 
-    // Load world GLTF assets from /public/assets/world/ and display them as coloured markers
+    // Load world GLTF assets from /public/assets/world/
+    // Quaternius modular platforms are ~2-unit cubes; scale and position them as terrain features.
     const worldAssets = [
-      { path: '/assets/world/terrain_main.gltf', color: [0.25, 0.55, 0.15], x: 0,  y: 0.05, z: 0,  s: 8,  flat: true },
-      { path: '/assets/world/spawn_area.gltf',   color: [0.3,  0.8,  0.9],  x: 0,  y: 0.1,  z: 0,  s: 4,  flat: true },
-      { path: '/assets/world/hill.gltf',         color: [0.35, 0.6,  0.2],  x: 25, y: 3.1,  z: 25, s: 3,  flat: true },
-      { path: '/assets/world/hill.gltf',         color: [0.35, 0.6,  0.2],  x: -30,y: 2.6,  z: 30, s: 3,  flat: true },
-      { path: '/assets/world/platform_large.gltf',color:[0.6,  0.55, 0.45], x: 25, y: 3.3,  z: 25, s: 2.5,flat: true },
-      { path: '/assets/world/platform_small.gltf',color:[0.5,  0.45, 0.35], x: -20,y: 2.3,  z: -25,s: 2,  flat: true },
+      { path: '/assets/world/terrain_main.gltf',   x: 0,   y: 0,   z: 0,   s: 6,   count: 1 },
+      { path: '/assets/world/spawn_area.gltf',     x: 0,   y: 0,   z: 0,   s: 3,   count: 1 },
+      { path: '/assets/world/hill.gltf',           x: 25,  y: 3,   z: 25,  s: 2.5, count: 1 },
+      { path: '/assets/world/hill.gltf',           x: -30, y: 2.5, z: 30,  s: 2.5, count: 1 },
+      { path: '/assets/world/platform_large.gltf', x: 25,  y: 3,   z: 25,  s: 2.5, count: 1 },
+      { path: '/assets/world/platform_small.gltf', x: -20, y: 2,   z: -25, s: 2,   count: 1 },
     ];
     for (const wa of worldAssets) {
       try {
         const result = await SceneLoader.ImportMeshAsync('', '', wa.path, this.scene);
-        const geoMesh = result.meshes.find(m => m.getTotalVertices() > 0);
-        if (geoMesh) {
-          const mat = new StandardMaterial(`worldMat_${wa.x}_${wa.z}`, this.scene);
-          mat.diffuseColor = new Color3(...wa.color);
-          mat.emissiveColor = new Color3(...wa.color.map(c => c * 0.4));
-          mat.backFaceCulling = false;
-          geoMesh.material = mat;
-          geoMesh.position = new Vector3(wa.x, wa.y, wa.z);
-          geoMesh.scaling = new Vector3(wa.s, wa.s, wa.s);
-          if (wa.flat) {
-            // Rotate XY-plane triangle to lie flat on the ground (XZ plane)
-            geoMesh.rotation.x = Math.PI / 2;
-          }
-          geoMesh.isVisible = true;
-        }
+        result.meshes.forEach(m => {
+          m.position = new Vector3(wa.x, wa.y, wa.z);
+          m.scaling = new Vector3(wa.s, wa.s, wa.s);
+          m.isVisible = true;
+          m.checkCollisions = true;
+        });
       } catch (e) {}
     }
   }
@@ -213,9 +205,7 @@ export class MainWorldScene {
     const propDefs = [
       {
         paths: ['/assets/props/tree.gltf', '/assets/props/tree2.gltf'],
-        color: [0.18, 0.65, 0.18],
-        emissive: [0.04, 0.18, 0.04],
-        scale: 1.6,
+        scale: 1.0,
         positions: [
           [5, 15], [-8, 12], [12, -5], [-15, -8],
           [20, 20], [-20, 20], [20, -20], [-20, -20],
@@ -229,8 +219,6 @@ export class MainWorldScene {
       },
       {
         paths: ['/assets/props/rock.gltf', '/assets/props/rock2.gltf'],
-        color: [0.48, 0.46, 0.42],
-        emissive: [0.08, 0.08, 0.07],
         scale: 1.2,
         positions: [
           [6, -10], [-6, 10], [14, 5], [-14, -5],
@@ -241,25 +229,19 @@ export class MainWorldScene {
       },
       {
         paths: ['/assets/props/house.gltf'],
-        color: [0.88, 0.82, 0.72],
-        emissive: [0.2, 0.18, 0.12],
-        scale: 2.2,
+        scale: 1.5,
         positions: [[15, 15], [-15, 15], [-15, -15], [30, -30]],
         fallback: (x, z) => this._createHouse(x, z, 0),
       },
       {
         paths: ['/assets/props/tower.gltf'],
-        color: [0.58, 0.54, 0.48],
-        emissive: [0.12, 0.11, 0.09],
-        scale: 3.5,
+        scale: 1.0,
         positions: [[0, 50], [50, 0], [-50, -50]],
         fallback: (x, z) => this._createTower(x, z),
       },
       {
         paths: ['/assets/props/bridge.gltf'],
-        color: [0.62, 0.5, 0.32],
-        emissive: [0.14, 0.1, 0.06],
-        scale: 2.4,
+        scale: 1.0,
         positions: [[0, 8]],
         fallback: (x, z) => this._createBridge(x, z, 8),
       },
@@ -273,11 +255,7 @@ export class MainWorldScene {
           const r = await SceneLoader.ImportMeshAsync('', '', p, this.scene);
           const geoMesh = r.meshes.find(m => m.getTotalVertices() > 0);
           if (geoMesh) {
-            const mat = new StandardMaterial(`propMat_${p}`, this.scene);
-            mat.diffuseColor = new Color3(...def.color);
-            mat.emissiveColor = new Color3(...def.emissive);
-            mat.backFaceCulling = false;
-            geoMesh.material = mat;
+            // Preserve the original Quaternius materials — no color override
             geoMesh.isVisible = false; // template hidden; instances shown
             templates.push(geoMesh);
           }

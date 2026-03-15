@@ -124,30 +124,20 @@ export class PlayerSystem {
     this.collider.ellipsoid = new Vector3(0.4, 1.0, 0.4);
 
     // Load hero GLTF from /public/assets/characters/playable/
-    // Each file is a flat right-angle triangle (XY plane, no material).
-    // We apply a coloured material and attach the root to the player TransformNode.
+    // Quaternius Character models are ~1.5 units tall; scale to fit the player capsule.
     try {
       const assetPath = `/assets/characters/playable/hero${this.characterIndex}.gltf`;
       const result = await SceneLoader.ImportMeshAsync('', '', assetPath, this.scene);
       if (result.meshes.length > 0) {
-        const mat = new StandardMaterial('playerGltfMat', this.scene);
-        mat.diffuseColor = color;
-        mat.emissiveColor = color.scale(0.5);
-        mat.backFaceCulling = false; // show both faces of the flat triangle
-
         // Attach root to player transform node and reset local transform
         const rootMesh = result.meshes[0];
         rootMesh.parent = this.root;
-        rootMesh.position = new Vector3(0, 0.1, 0);
-        const s = 2.0;
+        rootMesh.position = new Vector3(0, 0, 0);
+        const s = 1.2;
         rootMesh.scaling = new Vector3(s, s, s);
-        rootMesh.isVisible = true;
 
-        // Apply material to every mesh in the imported hierarchy
-        result.meshes.forEach(m => {
-          m.material = mat;
-          m.isVisible = true;
-        });
+        // Show all meshes with their original Quaternius materials
+        result.meshes.forEach(m => { m.isVisible = true; });
 
         // GLTF asset is now the primary visual — hide procedural fallback
         this.bodyMesh.isVisible = false;
