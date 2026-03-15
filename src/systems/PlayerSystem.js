@@ -50,6 +50,10 @@ export class PlayerSystem {
     this._lastMouseX = 0;
     this._lastMouseY = 0;
     this.mobileControls = null;
+
+    // Animation state
+    this._animGroups = {};
+    this._currentAnimName = null;
   }
 
   async init() {
@@ -142,6 +146,23 @@ export class PlayerSystem {
         // GLTF asset is now the primary visual — hide procedural fallback
         this.bodyMesh.isVisible = false;
         this.headMesh.isVisible = false;
+
+        // Stop every animation group that the GLTF loader auto-started, then
+        // catalogue them by role so we can drive them from player state.
+        result.animationGroups.forEach(ag => ag.stop());
+        this._animGroups = {};
+        for (const ag of result.animationGroups) {
+          const n = ag.name.toLowerCase();
+          if (n.includes('idle')) {
+            this._animGroups.idle = ag;
+          } else if (n.includes('run') || n.includes('walk')) {
+            this._animGroups.walk = ag;
+          } else if (n.includes('jump')) {
+            this._animGroups.jump = ag;
+          }
+        }
+        // Begin with idle pose
+        this._playAnim('idle');
       }
     } catch (e) {
       // Procedural geometry already visible as fallback
@@ -157,6 +178,8 @@ export class PlayerSystem {
     this.camera.lowerBetaLimit = 0.2;
     this.camera.upperBetaLimit = Math.PI / 2.1;
     this.camera.checkCollisions = false;
+    // Remove all built-in camera inputs — we drive the camera manually every frame
+    this.camera.inputs.clear();
     this.scene.activeCamera = this.camera;
     this.camera.setTarget(new Vector3(0, 1.2, 0));
   }
@@ -192,6 +215,15 @@ export class PlayerSystem {
         this._cameraAlpha += e.movementX * 0.003;
         this._cameraBeta -= e.movementY * 0.003;
         this._cameraBeta = Math.max(0.2, Math.min(Math.PI / 2.1, this._cameraBeta));
+      } else if (this._mouseDown) {
+        // Fallback drag rotation when pointer lock is unavailable
+        const dx = e.clientX - this._lastMouseX;
+        const dy = e.clientY - this._lastMouseY;
+        this._cameraAlpha += dx * 0.005;
+        this._cameraBeta -= dy * 0.005;
+        this._cameraBeta = Math.max(0.2, Math.min(Math.PI / 2.1, this._cameraBeta));
+        this._lastMouseX = e.clientX;
+        this._lastMouseY = e.clientY;
       }
     });
 
@@ -263,19 +295,15 @@ export class PlayerSystem {
     let moveX = 0;
     let moveZ = 0;
 
-    const camForward = new Vector3(
-      Math.sin(cam.alpha),
-      0,
-      Math.cos(cam.alpha)
-    ).normalize();
-    const camRight = new Vector3(
-      Math.cos(cam.alpha),
-      0,
-      -Math.sin(cam.alpha)
-    ).normalize();
+    // Correct ArcRotateCamera forward direction on the XZ plane:
+    //   camera position = target + r * [cos(α)cos(β), sin(β), sin(α)cos(β)]
+    //   so camera→target horizontal = [-cos(α), 0, -sin(α)]
+    const camForward = new Vector3(-Math.cos(cam.alpha), 0, -Math.sin(cam.alpha)).normalize();
+    // Right = 90° CW rotation of camForward viewed from above
+    const camRight = new Vector3(-Math.sin(cam.alpha), 0, Math.cos(cam.alpha)).normalize();
 
-    if (forward)  { moveX -= camForward.x; moveZ -= camForward.z; }
-    if (backward) { moveX += camForward.x; moveZ += camForward.z; }
+    if (forward)  { moveX += camForward.x; moveZ += camForward.z; }
+    if (backward) { moveX -= camForward.x; moveZ -= camForward.z; }
     if (left)     { moveX -= camRight.x;   moveZ -= camRight.z; }
     if (right)    { moveX += camRight.x;   moveZ += camRight.z; }
 
@@ -320,6 +348,7 @@ export class PlayerSystem {
     this.root.position.x = Math.max(-bounds, Math.min(bounds, this.root.position.x));
     this.root.position.z = Math.max(-bounds, Math.min(bounds, this.root.position.z));
 
+    this._updateAnimation();
     this._updateCamera(dt);
     this._animateBody(dt);
   }
@@ -336,6 +365,29 @@ export class PlayerSystem {
       this.root.position.z
     );
     cam.target = Vector3.Lerp(cam.target, targetPos, Math.min(1, 8 * dt));
+  }
+
+  /** Play a named animation group (idle / walk / jump), looping it.
+   *  No-ops if the group doesn't exist or is already playing. */
+  _playAnim(name) {
+    const ag = this._animGroups[name];
+    if (!ag || this._currentAnimName === name) return;
+    // Stop the previously playing clip
+    const prev = this._animGroups[this._currentAnimName];
+    if (prev) prev.stop();
+    this._currentAnimName = name;
+    ag.start(/*loop=*/true, /*speedRatio=*/1.0, /*from=*/ag.from, /*to=*/ag.to, /*isAdditive=*/false);
+  }
+
+  /** Switch animation based on current player state. */
+  _updateAnimation() {
+    if (this.isJumping) {
+      this._playAnim('jump');
+    } else if (this.isMoving) {
+      this._playAnim('walk');
+    } else {
+      this._playAnim('idle');
+    }
   }
 
   _animateBody(dt) {
