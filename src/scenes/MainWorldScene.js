@@ -173,96 +173,133 @@ export class MainWorldScene {
       plat.receiveShadows = true;
     }
 
-    try {
-      await SceneLoader.ImportMeshAsync('', '', '/assets/world/terrain_main.gltf', this.scene);
-      await SceneLoader.ImportMeshAsync('', '', '/assets/world/spawn_area.gltf', this.scene);
-    } catch (e) {
-      // use procedural terrain
+    // Load world GLTF assets from /public/assets/world/ and display them as coloured markers
+    const worldAssets = [
+      { path: '/assets/world/terrain_main.gltf', color: [0.25, 0.55, 0.15], x: 0,  y: 0.05, z: 0,  s: 8,  flat: true },
+      { path: '/assets/world/spawn_area.gltf',   color: [0.3,  0.8,  0.9],  x: 0,  y: 0.1,  z: 0,  s: 4,  flat: true },
+      { path: '/assets/world/hill.gltf',         color: [0.35, 0.6,  0.2],  x: 25, y: 3.1,  z: 25, s: 3,  flat: true },
+      { path: '/assets/world/hill.gltf',         color: [0.35, 0.6,  0.2],  x: -30,y: 2.6,  z: 30, s: 3,  flat: true },
+      { path: '/assets/world/platform_large.gltf',color:[0.6,  0.55, 0.45], x: 25, y: 3.3,  z: 25, s: 2.5,flat: true },
+      { path: '/assets/world/platform_small.gltf',color:[0.5,  0.45, 0.35], x: -20,y: 2.3,  z: -25,s: 2,  flat: true },
+    ];
+    for (const wa of worldAssets) {
+      try {
+        const result = await SceneLoader.ImportMeshAsync('', '', wa.path, this.scene);
+        const geoMesh = result.meshes.find(m => m.getTotalVertices() > 0);
+        if (geoMesh) {
+          const mat = new StandardMaterial(`worldMat_${wa.x}_${wa.z}`, this.scene);
+          mat.diffuseColor = new Color3(...wa.color);
+          mat.emissiveColor = new Color3(...wa.color.map(c => c * 0.4));
+          mat.backFaceCulling = false;
+          geoMesh.material = mat;
+          geoMesh.position = new Vector3(wa.x, wa.y, wa.z);
+          geoMesh.scaling = new Vector3(wa.s, wa.s, wa.s);
+          if (wa.flat) {
+            // Rotate XY-plane triangle to lie flat on the ground (XZ plane)
+            geoMesh.rotation.x = Math.PI / 2;
+          }
+          geoMesh.isVisible = true;
+        }
+      } catch (e) {}
     }
   }
 
   async _buildProps() {
-    const propMat = new StandardMaterial('propMat', this.scene);
-    propMat.diffuseColor = new Color3(0.4, 0.7, 0.3);
+    // ── Props from /public/assets/props/ ───────────────────────────────────────
+    // Each GLTF is a flat right-angle triangle. We load it once as a template,
+    // apply a coloured material, then clone/instance it at every position.
+    // Procedural geometry (_createTree etc.) is used as a fallback only.
 
-    const treePositions = [
-      [5, 0, 15], [-8, 0, 12], [12, 0, -5], [-15, 0, -8],
-      [20, 0, 20], [-20, 0, 20], [20, 0, -20], [-20, 0, -20],
-      [35, 0, 10], [-35, 0, 10], [10, 0, 35], [-10, 0, -35],
-      [40, 0, 0], [-40, 0, 0], [0, 0, 40], [0, 0, -40],
-      [45, 0, 30], [-45, 0, -30], [30, 0, 45], [-30, 0, -45],
-      [50, 0, 15], [-50, 0, -15], [15, 0, 50], [-15, 0, -50],
-      [8, 0, -18], [-12, 0, 22], [18, 0, 8], [-22, 0, -12],
+    const propDefs = [
+      {
+        paths: ['/assets/props/tree.gltf', '/assets/props/tree2.gltf'],
+        color: [0.18, 0.65, 0.18],
+        emissive: [0.04, 0.18, 0.04],
+        scale: 1.6,
+        positions: [
+          [5, 15], [-8, 12], [12, -5], [-15, -8],
+          [20, 20], [-20, 20], [20, -20], [-20, -20],
+          [35, 10], [-35, 10], [10, 35], [-10, -35],
+          [40, 0], [-40, 0], [0, 40], [0, -40],
+          [45, 30], [-45, -30], [30, 45], [-30, -45],
+          [50, 15], [-50, -15], [15, 50], [-15, -50],
+          [8, -18], [-12, 22], [18, 8], [-22, -12],
+        ],
+        fallback: (x, z, idx) => this._createTree(x, z, idx % 3 === 0),
+      },
+      {
+        paths: ['/assets/props/rock.gltf', '/assets/props/rock2.gltf'],
+        color: [0.48, 0.46, 0.42],
+        emissive: [0.08, 0.08, 0.07],
+        scale: 1.2,
+        positions: [
+          [6, -10], [-6, 10], [14, 5], [-14, -5],
+          [22, -12], [-22, 12], [28, 8], [-28, -8],
+          [32, 25], [-32, -25], [18, -30], [-18, 30],
+        ],
+        fallback: (x, z, idx) => this._createRock(x, z, idx % 2 === 0),
+      },
+      {
+        paths: ['/assets/props/house.gltf'],
+        color: [0.88, 0.82, 0.72],
+        emissive: [0.2, 0.18, 0.12],
+        scale: 2.2,
+        positions: [[15, 15], [-15, 15], [-15, -15], [30, -30]],
+        fallback: (x, z) => this._createHouse(x, z, 0),
+      },
+      {
+        paths: ['/assets/props/tower.gltf'],
+        color: [0.58, 0.54, 0.48],
+        emissive: [0.12, 0.11, 0.09],
+        scale: 3.5,
+        positions: [[0, 50], [50, 0], [-50, -50]],
+        fallback: (x, z) => this._createTower(x, z),
+      },
+      {
+        paths: ['/assets/props/bridge.gltf'],
+        color: [0.62, 0.5, 0.32],
+        emissive: [0.14, 0.1, 0.06],
+        scale: 2.4,
+        positions: [[0, 8]],
+        fallback: (x, z) => this._createBridge(x, z, 8),
+      },
     ];
 
-    let treeLoaded = false;
-    let tree2Loaded = false;
-    let treeTemplate = null;
-    let tree2Template = null;
-
-    try {
-      const r = await SceneLoader.ImportMeshAsync('', '', '/assets/props/tree.gltf', this.scene);
-      if (r.meshes.length > 0) {
-        treeTemplate = r.meshes[0];
-        treeTemplate.isVisible = false;
-        r.meshes.forEach(m => { m.isVisible = false; });
-        treeLoaded = true;
+    for (const def of propDefs) {
+      // Try each GLTF path in order (alternating variants for trees/rocks)
+      const templates = [];
+      for (const p of def.paths) {
+        try {
+          const r = await SceneLoader.ImportMeshAsync('', '', p, this.scene);
+          const geoMesh = r.meshes.find(m => m.getTotalVertices() > 0);
+          if (geoMesh) {
+            const mat = new StandardMaterial(`propMat_${p}`, this.scene);
+            mat.diffuseColor = new Color3(...def.color);
+            mat.emissiveColor = new Color3(...def.emissive);
+            mat.backFaceCulling = false;
+            geoMesh.material = mat;
+            geoMesh.isVisible = false; // template hidden; instances shown
+            templates.push(geoMesh);
+          }
+        } catch (e) {}
       }
-    } catch (e) {}
 
-    try {
-      const r = await SceneLoader.ImportMeshAsync('', '', '/assets/props/tree2.gltf', this.scene);
-      if (r.meshes.length > 0) {
-        tree2Template = r.meshes[0];
-        tree2Template.isVisible = false;
-        r.meshes.forEach(m => { m.isVisible = false; });
-        tree2Loaded = true;
+      for (let idx = 0; idx < def.positions.length; idx++) {
+        const [x, z] = def.positions[idx];
+        const tmpl = templates[idx % templates.length];
+        if (tmpl) {
+          // createInstance shares geometry + material, only needs a new transform
+          const inst = tmpl.createInstance(`${tmpl.name}_inst_${idx}`);
+          inst.position = new Vector3(x, 0, z);
+          const s = def.scale;
+          inst.scaling = new Vector3(s, s, s);
+          inst.isVisible = true;
+        } else {
+          // No GLTF loaded → use procedural fallback
+          def.fallback(x, z, idx);
+        }
       }
-    } catch (e) {}
-
-    for (let i = 0; i < treePositions.length; i++) {
-      const [x, , z] = treePositions[i];
-      this._createTree(x, z, i % 3 === 0);
     }
-
-    const rockPositions = [
-      [6, 0, -10], [-6, 0, 10], [14, 0, 5], [-14, 0, -5],
-      [22, 0, -12], [-22, 0, 12], [28, 0, 8], [-28, 0, -8],
-      [32, 0, 25], [-32, 0, -25], [18, 0, -30], [-18, 0, 30],
-    ];
-    for (const [x, , z] of rockPositions) {
-      this._createRock(x, z, Math.random() > 0.5);
-    }
-
-    const housePositions = [
-      { x: 15, z: 15, rot: 0 },
-      { x: -15, z: 15, rot: Math.PI / 4 },
-      { x: -15, z: -15, rot: Math.PI / 2 },
-      { x: 30, z: -30, rot: Math.PI / 3 },
-    ];
-    for (const hp of housePositions) {
-      this._createHouse(hp.x, hp.z, hp.rot);
-    }
-
-    const towerPositions = [
-      { x: 0, z: 50 },
-      { x: 50, z: 0 },
-      { x: -50, z: -50 },
-    ];
-    for (const tp of towerPositions) {
-      this._createTower(tp.x, tp.z);
-    }
-
-    this._createBridge(0, 0, 8);
-
-    try {
-      const results = [
-        SceneLoader.ImportMeshAsync('', '', '/assets/world/hill.gltf', this.scene),
-        SceneLoader.ImportMeshAsync('', '', '/assets/world/platform_large.gltf', this.scene),
-        SceneLoader.ImportMeshAsync('', '', '/assets/world/platform_small.gltf', this.scene),
-      ];
-      await Promise.allSettled(results);
-    } catch (e) {}
   }
 
   _createTree(x, z, variant = false) {

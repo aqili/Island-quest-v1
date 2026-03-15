@@ -40,7 +40,6 @@ export class CharacterSelectionScene {
     this.sceneManager = sceneManager;
     this.scene = null;
     this.selectedIndex = 0;
-    this.characterMeshes = [];
     this.rotationTargets = [];
   }
 
@@ -131,19 +130,20 @@ export class CharacterSelectionScene {
       const x = Math.cos(angle) * 4;
       const z = Math.sin(angle) * 4;
 
-      const root = MeshBuilder.CreateSphere(`charRoot${i}`, { diameter: 0.01 }, this.scene);
-      root.position = new Vector3(x, 0, z);
-      root.isVisible = false;
-      this.characterMeshes.push(root);
+      // Glow disc under each character
+      const glowMat = new StandardMaterial(`glow${i}Mat`, this.scene);
+      glowMat.emissiveColor = HERO_COLORS[i].scale(0.4);
+      const glow = MeshBuilder.CreateCylinder(`glow${i}`, { diameter: 1.6, height: 0.02, tessellation: 16 }, this.scene);
+      glow.position = new Vector3(x, 0.11, z);
+      glow.material = glowMat;
 
+      // Procedural fallback capsule (shown until GLTF loads)
       const bodyMat = new StandardMaterial(`bodyMat${i}`, this.scene);
       bodyMat.diffuseColor = HERO_COLORS[i];
       bodyMat.specularColor = HERO_COLORS[i].scale(0.5);
-
       const body = MeshBuilder.CreateCapsule(`body${i}`, { height: 1.8, radius: 0.35, tessellation: 12 }, this.scene);
       body.position = new Vector3(x, 0.9, z);
       body.material = bodyMat;
-      body.parent = null;
 
       const headMat = new StandardMaterial(`headMat${i}`, this.scene);
       headMat.diffuseColor = new Color3(0.9, 0.75, 0.6);
@@ -151,28 +151,38 @@ export class CharacterSelectionScene {
       head.position = new Vector3(x, 2.0, z);
       head.material = headMat;
 
-      const glowMat = new StandardMaterial(`glow${i}Mat`, this.scene);
-      glowMat.emissiveColor = HERO_COLORS[i].scale(0.3);
-      const glow = MeshBuilder.CreateCylinder(`glow${i}`, { diameter: 1.4, height: 0.02, tessellation: 16 }, this.scene);
-      glow.position = new Vector3(x, 0.11, z);
-      glow.material = glowMat;
-
+      // Load GLTF asset from /public/assets/characters/playable/
+      // Each file is a flat right-angle triangle (XY plane, no material).
+      // We apply a coloured material and position the root mesh.
       try {
-        const path = `/assets/characters/playable/hero${i + 1}.gltf`;
-        const result = await SceneLoader.ImportMeshAsync('', '', path, this.scene);
-        if (result && result.meshes.length > 1) {
+        const assetPath = `/assets/characters/playable/hero${i + 1}.gltf`;
+        const result = await SceneLoader.ImportMeshAsync('', '', assetPath, this.scene);
+        if (result.meshes.length > 0) {
+          const heroColor = HERO_COLORS[i];
+          const mat = new StandardMaterial(`hero${i}GltfMat`, this.scene);
+          mat.diffuseColor = heroColor;
+          mat.emissiveColor = heroColor.scale(0.5);
+          mat.backFaceCulling = false; // show both faces of the flat triangle
+
+          // Position and scale the root of the imported hierarchy
+          const rootMesh = result.meshes[0];
+          rootMesh.position = new Vector3(x, 0.1, z);
+          const s = 2.2;
+          rootMesh.scaling = new Vector3(s, s, s);
+          rootMesh.isVisible = true;
+
+          // Apply the material to every mesh in the imported hierarchy
           result.meshes.forEach(m => {
-            if (m.name !== '__root__') {
-              m.position = new Vector3(x, 0, z);
-              m.scaling = new Vector3(1.2, 1.2, 1.2);
-            } else {
-              m.position = new Vector3(x, 0, z);
-              m.scaling = new Vector3(1.2, 1.2, 1.2);
-            }
+            m.material = mat;
+            m.isVisible = true;
           });
+
+          // GLTF asset is now the primary visual — hide procedural fallback
+          body.isVisible = false;
+          head.isVisible = false;
         }
       } catch (e) {
-        // placeholder geometry already present
+        // Procedural fallback stays visible
       }
     }
   }

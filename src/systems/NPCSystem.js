@@ -92,17 +92,41 @@ export class NPCSystem {
     nameplate.material = nameplateMat;
     nameplate.isPickable = false;
 
+    // Load NPC GLTF from /public/assets/characters/npcs/
+    // Each file is a flat right-angle triangle (XY plane, no material).
+    // We apply a coloured material and attach the root to the NPC TransformNode.
     try {
       const npcIdx = (typeIdx % 5) + 1;
-      const path = `/assets/characters/npcs/npc${npcIdx}.gltf`;
-      const result = await SceneLoader.ImportMeshAsync('', '', path, this.scene);
-      if (result && result.meshes.length > 1) {
-        const gltfRoot = result.meshes.find(m => m.name === '__root__') || result.meshes[0];
-        gltfRoot.parent = root;
-        gltfRoot.position = Vector3.Zero();
-        gltfRoot.scaling = new Vector3(1.4, 1.4, 1.4);
+      const assetPath = `/assets/characters/npcs/npc${npcIdx}.gltf`;
+      const result = await SceneLoader.ImportMeshAsync('', '', assetPath, this.scene);
+      if (result.meshes.length > 0) {
+        const npcColor = NPC_COLORS[typeIdx % NPC_COLORS.length];
+        const mat = new StandardMaterial(`npcGltfMat_${id}`, this.scene);
+        mat.diffuseColor = npcColor;
+        mat.emissiveColor = npcColor.scale(0.5);
+        mat.backFaceCulling = false; // show both faces of the flat triangle
+
+        // Attach root to NPC transform node and reset local transform
+        const rootMesh = result.meshes[0];
+        rootMesh.parent = root;
+        rootMesh.position = new Vector3(0, 0.1, 0);
+        const s = 2.0;
+        rootMesh.scaling = new Vector3(s, s, s);
+        rootMesh.isVisible = true;
+
+        // Apply material to every mesh in the imported hierarchy
+        result.meshes.forEach(m => {
+          m.material = mat;
+          m.isVisible = true;
+        });
+
+        // GLTF asset is now the primary visual — hide procedural fallback
+        body.isVisible = false;
+        head.isVisible = false;
       }
-    } catch (e) {}
+    } catch (e) {
+      // Procedural geometry already visible as fallback
+    }
 
     root.rotation.y = Math.random() * Math.PI * 2;
 

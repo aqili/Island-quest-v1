@@ -116,21 +116,38 @@ export class PlayerSystem {
     this.collider.position.y = 1.0;
     this.collider.ellipsoid = new Vector3(0.4, 1.0, 0.4);
 
+    // Load hero GLTF from /public/assets/characters/playable/
+    // Each file is a flat right-angle triangle (XY plane, no material).
+    // We apply a coloured material and attach the root to the player TransformNode.
     try {
-      const path = `/assets/characters/playable/hero${this.characterIndex}.gltf`;
-      const result = await SceneLoader.ImportMeshAsync('', '', path, this.scene);
-      if (result && result.meshes.length > 1) {
-        const gltfRoot = result.meshes.find(m => m.name === '__root__') || result.meshes[0];
-        gltfRoot.parent = this.root;
-        gltfRoot.position = new Vector3(0, 0, 0);
-        gltfRoot.scaling = new Vector3(1.5, 1.5, 1.5);
-        gltfRoot.isVisible = true;
+      const assetPath = `/assets/characters/playable/hero${this.characterIndex}.gltf`;
+      const result = await SceneLoader.ImportMeshAsync('', '', assetPath, this.scene);
+      if (result.meshes.length > 0) {
+        const mat = new StandardMaterial('playerGltfMat', this.scene);
+        mat.diffuseColor = color;
+        mat.emissiveColor = color.scale(0.5);
+        mat.backFaceCulling = false; // show both faces of the flat triangle
+
+        // Attach root to player transform node and reset local transform
+        const rootMesh = result.meshes[0];
+        rootMesh.parent = this.root;
+        rootMesh.position = new Vector3(0, 0.1, 0);
+        const s = 2.0;
+        rootMesh.scaling = new Vector3(s, s, s);
+        rootMesh.isVisible = true;
+
+        // Apply material to every mesh in the imported hierarchy
         result.meshes.forEach(m => {
-          if (m !== gltfRoot) m.isVisible = true;
+          m.material = mat;
+          m.isVisible = true;
         });
+
+        // GLTF asset is now the primary visual — hide procedural fallback
+        this.bodyMesh.isVisible = false;
+        this.headMesh.isVisible = false;
       }
     } catch (e) {
-      // use primitive geometry already built
+      // Procedural geometry already visible as fallback
     }
   }
 
