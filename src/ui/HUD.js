@@ -81,8 +81,8 @@ export class HUD {
 
   _buildMessageBox() {
     this.messageBox = new Rectangle('msgBox');
-    this.messageBox.width = '420px';
-    this.messageBox.height = '56px';
+    this.messageBox.width = '90%';
+    this.messageBox.height = '64px';
     this.messageBox.cornerRadius = 12;
     this.messageBox.background = 'rgba(5,10,30,0.88)';
     this.messageBox.color = 'rgba(100,160,255,0.6)';
@@ -101,8 +101,8 @@ export class HUD {
 
   _buildControls() {
     this.controlsPanel = new Rectangle('controlsPanel');
-    this.controlsPanel.width = '260px';
-    this.controlsPanel.height = '200px';
+    this.controlsPanel.width = '280px';
+    this.controlsPanel.height = '220px';
     this.controlsPanel.cornerRadius = 12;
     this.controlsPanel.background = 'rgba(5,10,30,0.92)';
     this.controlsPanel.color = 'rgba(100,160,255,0.4)';
@@ -121,7 +121,13 @@ export class HUD {
     ctrlTitle.top = '-75px';
     this.controlsPanel.addControl(ctrlTitle);
 
-    const lines = [
+    const isMobile = 'ontouchstart' in window;
+    const lines = isMobile ? [
+      'Left Joystick — Move',
+      'Right Touch Drag — Camera',
+      'JUMP button — Jump',
+      'Tap ◀ ▶ — Navigate',
+    ] : [
       'WASD / Arrow Keys — Move',
       'Mouse Drag — Camera',
       'Scroll Wheel — Zoom',
@@ -152,15 +158,15 @@ export class HUD {
 
   _buildMinimap() {
     const mapBg = new Rectangle('mapBg');
-    mapBg.width = '120px';
-    mapBg.height = '120px';
-    mapBg.cornerRadius = 60;
+    mapBg.width = '100px';
+    mapBg.height = '100px';
+    mapBg.cornerRadius = 50;
     mapBg.background = 'rgba(5,10,30,0.75)';
     mapBg.color = 'rgba(100,160,255,0.4)';
     mapBg.thickness = 1;
     mapBg.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
     mapBg.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-    mapBg.top = '-16px';
+    mapBg.top = '-230px';
     mapBg.left = '-16px';
     this.gui.addControl(mapBg);
 

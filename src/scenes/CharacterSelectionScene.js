@@ -33,6 +33,8 @@ const HERO_DESCS = [
   'Champion of the blazing dawn',
 ];
 
+const SWIPE_THRESHOLD_PX = 50; // minimum horizontal swipe distance to navigate
+
 export class CharacterSelectionScene {
   constructor(engine, canvas, sceneManager) {
     this.engine = engine;
@@ -208,8 +210,8 @@ export class CharacterSelectionScene {
     gui.addControl(subTitle);
 
     const panelBg = new Rectangle('panelBg');
-    panelBg.width = '380px';
-    panelBg.height = '280px';
+    panelBg.width = '92%';
+    panelBg.height = '290px';
     panelBg.top = '30%';
     panelBg.cornerRadius = 16;
     panelBg.color = 'rgba(100,180,255,0.3)';
@@ -256,7 +258,7 @@ export class CharacterSelectionScene {
     prevBtn.background = 'rgba(10,20,60,0.8)';
     prevBtn.thickness = 1;
     prevBtn.top = '28%';
-    prevBtn.left = '-140px';
+    prevBtn.left = '-42%';
     prevBtn.fontSize = 20;
     prevBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
     prevBtn.onPointerClickObservable.add(() => this._navigate(-1));
@@ -270,14 +272,14 @@ export class CharacterSelectionScene {
     nextBtn.background = 'rgba(10,20,60,0.8)';
     nextBtn.thickness = 1;
     nextBtn.top = '28%';
-    nextBtn.left = '140px';
+    nextBtn.left = '42%';
     nextBtn.fontSize = 20;
     nextBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
     nextBtn.onPointerClickObservable.add(() => this._navigate(1));
     gui.addControl(nextBtn);
 
     const selectBtn = Button.CreateSimpleButton('selectBtn', 'BEGIN ADVENTURE');
-    selectBtn.width = '240px';
+    selectBtn.width = '60%';
     selectBtn.height = '52px';
     selectBtn.cornerRadius = 26;
     selectBtn.color = '#ffffff';
@@ -310,6 +312,21 @@ export class CharacterSelectionScene {
         }
       }
     });
+
+    // Touch swipe for character navigation (mobile)
+    let swipeStartX = null;
+    const swipeThreshold = SWIPE_THRESHOLD_PX;
+    this.canvas.addEventListener('touchstart', e => {
+      swipeStartX = e.changedTouches[0].clientX;
+    }, { passive: true });
+    this.canvas.addEventListener('touchend', e => {
+      if (swipeStartX === null) return;
+      const dx = e.changedTouches[0].clientX - swipeStartX;
+      if (Math.abs(dx) > swipeThreshold) {
+        this._navigate(dx < 0 ? 1 : -1);
+      }
+      swipeStartX = null;
+    }, { passive: true });
   }
 
   _navigate(dir) {

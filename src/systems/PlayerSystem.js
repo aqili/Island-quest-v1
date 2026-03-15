@@ -6,6 +6,7 @@ import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import '@babylonjs/loaders/glTF';
+import { MobileControls } from '../ui/MobileControls.js';
 
 const HERO_COLORS = [
   new Color3(0.2, 0.6, 1.0),
@@ -14,6 +15,9 @@ const HERO_COLORS = [
   new Color3(0.9, 0.2, 0.8),
   new Color3(1.0, 0.85, 0.1),
 ];
+
+const JOYSTICK_ZONE_WIDTH_RATIO = 0.45; // left 45% of screen = joystick zone
+const JOYSTICK_DEADZONE = 0.05;         // ignore tiny joystick deflections
 
 export class PlayerSystem {
   constructor(scene, canvas, characterIndex) {
@@ -45,6 +49,7 @@ export class PlayerSystem {
     this._mouseDown = false;
     this._lastMouseX = 0;
     this._lastMouseY = 0;
+    this.mobileControls = null;
   }
 
   async init() {
@@ -54,6 +59,8 @@ export class PlayerSystem {
     await this._buildCharacterMesh();
     this._setupCamera();
     this._setupInput();
+    this.mobileControls = new MobileControls();
+    this.mobileControls.init();
 
     this.scene.registerBeforeRender(() => this._update());
     return this;
@@ -204,22 +211,41 @@ export class PlayerSystem {
 
     this.canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-    let touchStart = null;
+    // Touch camera look — only track touches on the RIGHT half of the screen.
+    // The left side is reserved for the virtual joystick DOM overlay.
+    let cameraTouch = null;
     this.canvas.addEventListener('touchstart', e => {
-      if (e.touches.length === 1) {
-        touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      for (const t of e.changedTouches) {
+        if (t.clientX > window.innerWidth * JOYSTICK_ZONE_WIDTH_RATIO && !cameraTouch) {
+          cameraTouch = { id: t.identifier, x: t.clientX, y: t.clientY };
+          break;
+        }
       }
-    });
+    }, { passive: true });
     this.canvas.addEventListener('touchmove', e => {
-      if (touchStart && e.touches.length === 1) {
-        const dx = e.touches[0].clientX - touchStart.x;
-        const dy = e.touches[0].clientY - touchStart.y;
-        this._cameraAlpha += dx * 0.01;
-        this._cameraBeta -= dy * 0.01;
-        this._cameraBeta = Math.max(0.2, Math.min(Math.PI / 2.1, this._cameraBeta));
-        touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      if (!cameraTouch) return;
+      for (const t of e.changedTouches) {
+        if (t.identifier === cameraTouch.id) {
+          const dx = t.clientX - cameraTouch.x;
+          const dy = t.clientY - cameraTouch.y;
+          this._cameraAlpha += dx * 0.008;
+          this._cameraBeta  -= dy * 0.008;
+          this._cameraBeta   = Math.max(0.2, Math.min(Math.PI / 2.1, this._cameraBeta));
+          cameraTouch.x = t.clientX;
+          cameraTouch.y = t.clientY;
+          break;
+        }
       }
-    });
+    }, { passive: true });
+    this.canvas.addEventListener('touchend', e => {
+      for (const t of e.changedTouches) {
+        if (cameraTouch && t.identifier === cameraTouch.id) {
+          cameraTouch = null;
+          break;
+        }
+      }
+    }, { passive: true });
+    this.canvas.addEventListener('touchcancel', () => { cameraTouch = null; }, { passive: true });
   }
 
   _update() {
@@ -233,7 +259,16 @@ export class PlayerSystem {
     const left = this._keys.left;
     const right = this._keys.right;
 
-    this.isMoving = forward || backward || left || right;
+    // Mobile joystick input (additive with keyboard)
+    const joyMove = this.mobileControls ? this.mobileControls.getMovement() : { x: 0, y: 0 };
+    const joystickActive = Math.abs(joyMove.x) > JOYSTICK_DEADZONE || Math.abs(joyMove.y) > JOYSTICK_DEADZONE;
+
+    // Jump from joystick jump button
+    if (this.mobileControls && this.mobileControls.consumeJump() && !this.isJumping) {
+      this._keys.jump = true;
+    }
+
+    this.isMoving = forward || backward || left || right || joystickActive;
 
     let moveX = 0;
     let moveZ = 0;
@@ -254,6 +289,12 @@ export class PlayerSystem {
     if (left)     { moveX -= camRight.x;   moveZ -= camRight.z; }
     if (right)    { moveX += camRight.x;   moveZ += camRight.z; }
 
+    // Joystick: joyMove.y is screen-down = game-backward; joyMove.x is screen-right = game-right
+    if (joystickActive) {
+      moveX += camForward.x * (-joyMove.y) + camRight.x * joyMove.x;
+      moveZ += camForward.z * (-joyMove.y) + camRight.z * joyMove.x;
+    }
+
     if (this.isMoving) {
       const len = Math.sqrt(moveX * moveX + moveZ * moveZ);
       if (len > 0) { moveX /= len; moveZ /= len; }
@@ -272,6 +313,7 @@ export class PlayerSystem {
     if (this._keys.jump && !this.isJumping) {
       this.isJumping = true;
       this.verticalVelocity = 8;
+      this._keys.jump = false; // consumed
     }
 
     if (this.isJumping) {
@@ -339,5 +381,9 @@ export class PlayerSystem {
 
   dispose() {
     document.exitPointerLock?.();
+    if (this.mobileControls) {
+      this.mobileControls.destroy();
+      this.mobileControls = null;
+    }
   }
 }

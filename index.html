@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Island Quest</title>
     <style>
       * {
@@ -96,6 +96,22 @@
         color: #64b5f6;
         letter-spacing: 0.1em;
       }
+
+      /* Prevent iOS rubber-band scroll and double-tap zoom */
+      html, body {
+        -webkit-overflow-scrolling: touch;
+        touch-action: none;
+        overscroll-behavior: none;
+      }
+
+      /* Loading screen responsive text */
+      @media (max-width: 600px) {
+        .loading-title    { font-size: 2rem; }
+        .loading-subtitle { font-size: 0.8rem; }
+        .loading-bar-container { width: 80%; }
+      }
+
+      /* Mobile controls overlay styles live in MobileControls.js */
     </style>
   </head>
   <body>
