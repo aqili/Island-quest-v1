@@ -1,0 +1,20 @@
+{
+  "name": "island-quest-v1",
+  "version": "1.0.0",
+  "description": "Island Quest - A Babylon.js open-world exploration game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^7.26.2",
+    "@babylonjs/gui": "^7.26.2",
+    "@babylonjs/loaders": "^7.26.2",
+    "@babylonjs/materials": "^7.26.2"
+  },
+  "devDependencies": {
+    "vite": "^5.4.11"
+  }
+}
