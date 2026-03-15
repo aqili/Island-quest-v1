@@ -239,31 +239,21 @@ export class InteractionSystem {
     }
 
     // Load interaction GLTF from /public/assets/interactions/
-    // Each file is a flat right-angle triangle (XY plane, no material).
-    // We apply a coloured emissive material and attach the root to the interaction node.
+    // Quaternius models have their own materials; preserve them and scale to fit the scene.
     try {
       const cfgPath = INTERACTION_CONFIGS.find(c => c.type === type)?.path;
       if (cfgPath) {
         const result = await SceneLoader.ImportMeshAsync('', '', cfgPath, this.scene);
         if (result.meshes.length > 0) {
-          const gltfMat = new StandardMaterial(`${id}GltfMat`, this.scene);
-          gltfMat.diffuseColor = color;
-          gltfMat.emissiveColor = color.scale(0.8);
-          gltfMat.backFaceCulling = false; // show both faces of the flat triangle
-
           // Attach root to the interaction TransformNode
           const rootMesh = result.meshes[0];
           rootMesh.parent = root;
-          rootMesh.position = new Vector3(0, 0.5, 0);
-          const s = 1.8;
+          rootMesh.position = new Vector3(0, 0, 0);
+          const s = type === 'pickup' ? 0.5 : (type === 'sign' ? 1.0 : 1.2);
           rootMesh.scaling = new Vector3(s, s, s);
-          rootMesh.isVisible = true;
 
-          // Apply material to every mesh in the imported hierarchy
-          result.meshes.forEach(m => {
-            m.material = gltfMat;
-            m.isVisible = true;
-          });
+          // Show all meshes with their original Quaternius materials
+          result.meshes.forEach(m => { m.isVisible = true; });
         }
       }
     } catch (e) {}
