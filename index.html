@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Island Quest</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0a0a1a;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      #renderCanvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+      }
+
+      #loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0a1a2a 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        color: #fff;
+        transition: opacity 0.8s ease;
+      }
+
+      #loading-screen.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .loading-title {
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(90deg, #4fc3f7, #81d4fa, #b3e5fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 1rem;
+        text-shadow: none;
+        letter-spacing: 0.1em;
+      }
+
+      .loading-subtitle {
+        font-size: 1rem;
+        color: #90caf9;
+        margin-bottom: 2rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .loading-bar-container {
+        width: 300px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 2px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+      }
+
+      .loading-bar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #4fc3f7, #81d4fa);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+        animation: loading-pulse 1.5s infinite;
+      }
+
+      @keyframes loading-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+      }
+
+      .loading-text {
+        font-size: 0.8rem;
+        color: #64b5f6;
+        letter-spacing: 0.1em;
+      }
+
+      /* Prevent iOS rubber-band scroll and double-tap zoom */
+      html, body {
+        -webkit-overflow-scrolling: touch;
+        touch-action: none;
+        overscroll-behavior: none;
+      }
+
+      /* Loading screen responsive text */
+      @media (max-width: 600px) {
+        .loading-title    { font-size: 2rem; }
+        .loading-subtitle { font-size: 0.8rem; }
+        .loading-bar-container { width: 80%; }
+      }
+
+      /* Mobile controls overlay styles live in MobileControls.js */
+    </style>
+  </head>
+  <body>
+    <div id="loading-screen">
+      <div class="loading-title">ISLAND QUEST</div>
+      <div class="loading-subtitle">An Open World Adventure</div>
+      <div class="loading-bar-container">
+        <div class="loading-bar" id="loading-bar"></div>
+      </div>
+      <div class="loading-text" id="loading-text">Initializing engine...</div>
+    </div>
+    <canvas id="renderCanvas"></canvas>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
