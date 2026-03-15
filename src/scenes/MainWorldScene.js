@@ -176,8 +176,6 @@ export class MainWorldScene {
     // Load world GLTF assets from /public/assets/world/
     // Quaternius modular platforms are ~2-unit cubes; scale and position them as terrain features.
     const worldAssets = [
-      { path: '/assets/world/terrain_main.gltf',   x: 0,   y: 0,   z: 0,   s: 6,   count: 1 },
-      { path: '/assets/world/spawn_area.gltf',     x: 0,   y: 0,   z: 0,   s: 3,   count: 1 },
       { path: '/assets/world/hill.gltf',           x: 25,  y: 3,   z: 25,  s: 2.5, count: 1 },
       { path: '/assets/world/hill.gltf',           x: -30, y: 2.5, z: 30,  s: 2.5, count: 1 },
       { path: '/assets/world/platform_large.gltf', x: 25,  y: 3,   z: 25,  s: 2.5, count: 1 },
@@ -186,13 +184,18 @@ export class MainWorldScene {
     for (const wa of worldAssets) {
       try {
         const result = await SceneLoader.ImportMeshAsync('', '', wa.path, this.scene);
-        result.meshes.forEach(m => {
-          m.position = new Vector3(wa.x, wa.y, wa.z);
-          m.scaling = new Vector3(wa.s, wa.s, wa.s);
-          m.isVisible = true;
-          m.checkCollisions = true;
-        });
-      } catch (e) {}
+        if (result.meshes.length > 0) {
+          const rootMesh = result.meshes[0];
+          rootMesh.position = new Vector3(wa.x, wa.y, wa.z);
+          rootMesh.scaling = new Vector3(wa.s, wa.s, wa.s);
+          result.meshes.forEach(m => {
+            m.isVisible = true;
+            m.checkCollisions = true;
+          });
+        }
+      } catch (e) {
+        console.warn('Failed to load world asset', wa.path, e);
+      }
     }
   }
 
@@ -259,19 +262,25 @@ export class MainWorldScene {
             geoMesh.isVisible = false; // template hidden; instances shown
             templates.push(geoMesh);
           }
-        } catch (e) {}
+        } catch (e) {
+          console.warn('Failed to load prop asset', p, e);
+        }
       }
 
       for (let idx = 0; idx < def.positions.length; idx++) {
         const [x, z] = def.positions[idx];
         const tmpl = templates[idx % templates.length];
         if (tmpl) {
-          // createInstance shares geometry + material, only needs a new transform
-          const inst = tmpl.createInstance(`${tmpl.name}_inst_${idx}`);
-          inst.position = new Vector3(x, 0, z);
-          const s = def.scale;
-          inst.scaling = new Vector3(s, s, s);
-          inst.isVisible = true;
+          try {
+            const inst = tmpl.createInstance(`${tmpl.name}_inst_${idx}`);
+            inst.position = new Vector3(x, 0, z);
+            const s = def.scale;
+            inst.scaling = new Vector3(s, s, s);
+            inst.isVisible = true;
+          } catch (e) {
+            console.warn('createInstance failed, using fallback:', e);
+            def.fallback(x, z, idx);
+          }
         } else {
           // No GLTF loaded → use procedural fallback
           def.fallback(x, z, idx);
