@@ -8,7 +8,6 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
 import { AdvancedDynamicTexture } from '@babylonjs/gui/2D/advancedDynamicTexture';
-import { Button } from '@babylonjs/gui/2D/controls/button';
 import { TextBlock } from '@babylonjs/gui/2D/controls/textBlock';
 import { Rectangle } from '@babylonjs/gui/2D/controls/rectangle';
 import { StackPanel } from '@babylonjs/gui/2D/controls/stackPanel';
@@ -250,56 +249,7 @@ export class CharacterSelectionScene {
       this.dots.push(dot);
     }
 
-    const prevBtn = Button.CreateSimpleButton('prevBtn', '◀');
-    prevBtn.width = '52px';
-    prevBtn.height = '52px';
-    prevBtn.cornerRadius = 26;
-    prevBtn.color = '#81d4fa';
-    prevBtn.background = 'rgba(10,20,60,0.8)';
-    prevBtn.thickness = 1;
-    prevBtn.top = '28%';
-    prevBtn.left = '-42%';
-    prevBtn.fontSize = 20;
-    prevBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-    prevBtn.onPointerClickObservable.add(() => this._navigate(-1));
-    gui.addControl(prevBtn);
-
-    const nextBtn = Button.CreateSimpleButton('nextBtn', '▶');
-    nextBtn.width = '52px';
-    nextBtn.height = '52px';
-    nextBtn.cornerRadius = 26;
-    nextBtn.color = '#81d4fa';
-    nextBtn.background = 'rgba(10,20,60,0.8)';
-    nextBtn.thickness = 1;
-    nextBtn.top = '28%';
-    nextBtn.left = '42%';
-    nextBtn.fontSize = 20;
-    nextBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-    nextBtn.onPointerClickObservable.add(() => this._navigate(1));
-    gui.addControl(nextBtn);
-
-    const selectBtn = Button.CreateSimpleButton('selectBtn', 'BEGIN ADVENTURE');
-    selectBtn.width = '60%';
-    selectBtn.height = '52px';
-    selectBtn.cornerRadius = 26;
-    selectBtn.color = '#ffffff';
-    selectBtn.background = 'rgba(30,100,200,0.9)';
-    selectBtn.thickness = 1;
-    selectBtn.top = '40%';
-    selectBtn.fontSize = 16;
-    selectBtn.fontWeight = '700';
-    selectBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-    selectBtn.onPointerUpObservable.add(() => {
-      this.sceneManager.goToMainWorld(this.selectedIndex + 1);
-    });
-    gui.addControl(selectBtn);
-
-    const hint = new TextBlock('hint', 'Use ◀ ▶ to browse characters');
-    hint.color = '#546e7a';
-    hint.fontSize = 12;
-    hint.top = '46%';
-    hint.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
-    gui.addControl(hint);
+    this._buildDOMButtons();
 
     this.scene.onKeyboardObservable.add((kbInfo) => {
       if (kbInfo.type === 1) {
@@ -329,6 +279,95 @@ export class CharacterSelectionScene {
     }, { passive: true });
   }
 
+  _buildDOMButtons() {
+    // Overlay real HTML buttons on top of the Babylon canvas so that clicks
+    // and touch-taps work reliably on every browser and mobile device.
+    // Positions mirror the Babylon.js GUI layout:
+    //   ◀  centred at (8%, 78%)   ▶  centred at (92%, 78%)
+    //   BEGIN ADVENTURE centred at (50%, 90%), width 60%
+    this._domOverlay = document.createElement('div');
+    Object.assign(this._domOverlay.style, {
+      position: 'fixed',
+      top: '0', left: '0', right: '0', bottom: '0',
+      pointerEvents: 'none',
+      zIndex: '10',
+    });
+
+    const makeBtn = (label, css, onClick) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      Object.assign(btn.style, {
+        position: 'absolute',
+        border: 'none',
+        cursor: 'pointer',
+        pointerEvents: 'all',
+        touchAction: 'manipulation',
+        fontFamily: "'Segoe UI', Tahoma, sans-serif",
+        lineHeight: '1',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        ...css,
+      });
+      btn.addEventListener('click', onClick);
+      this._domOverlay.appendChild(btn);
+      return btn;
+    };
+
+    // ◀ previous
+    makeBtn('◀', {
+      left: 'calc(8% - 26px)',
+      top: 'calc(78% - 26px)',
+      width: '52px', height: '52px',
+      borderRadius: '50%',
+      background: 'rgba(10,20,60,0.85)',
+      color: '#81d4fa',
+      fontSize: '20px',
+      boxShadow: '0 0 0 1px rgba(100,180,255,0.4)',
+    }, () => this._navigate(-1));
+
+    // ▶ next
+    makeBtn('▶', {
+      left: 'calc(92% - 26px)',
+      top: 'calc(78% - 26px)',
+      width: '52px', height: '52px',
+      borderRadius: '50%',
+      background: 'rgba(10,20,60,0.85)',
+      color: '#81d4fa',
+      fontSize: '20px',
+      boxShadow: '0 0 0 1px rgba(100,180,255,0.4)',
+    }, () => this._navigate(1));
+
+    // BEGIN ADVENTURE
+    makeBtn('BEGIN ADVENTURE', {
+      left: '20%',
+      top: 'calc(90% - 26px)',
+      width: '60%', height: '52px',
+      borderRadius: '26px',
+      background: 'rgba(30,100,200,0.9)',
+      color: '#fff',
+      fontSize: '16px', fontWeight: '700',
+      letterSpacing: '0.05em',
+      boxShadow: '0 2px 16px rgba(30,100,200,0.5)',
+    }, () => this.sceneManager.goToMainWorld(this.selectedIndex + 1));
+
+    // hint
+    const hint = document.createElement('div');
+    hint.textContent = 'Use ◀ ▶ buttons or swipe to browse · Press Enter or tap BEGIN ADVENTURE to play';
+    Object.assign(hint.style, {
+      position: 'absolute',
+      bottom: '4%',
+      left: '0', right: '0',
+      textAlign: 'center',
+      color: 'rgba(84,110,122,0.9)',
+      fontSize: '11px',
+      fontFamily: "'Segoe UI', Tahoma, sans-serif",
+      pointerEvents: 'none',
+    });
+    this._domOverlay.appendChild(hint);
+
+    document.body.appendChild(this._domOverlay);
+  }
+
   _navigate(dir) {
     this.selectedIndex = (this.selectedIndex + dir + 5) % 5;
     this.nameText.text = HERO_NAMES[this.selectedIndex];
@@ -353,6 +392,10 @@ export class CharacterSelectionScene {
   }
 
   dispose() {
+    if (this._domOverlay && this._domOverlay.parentNode) {
+      this._domOverlay.parentNode.removeChild(this._domOverlay);
+    }
+    this._domOverlay = null;
     if (this.scene) {
       this.scene.dispose();
       this.scene = null;
